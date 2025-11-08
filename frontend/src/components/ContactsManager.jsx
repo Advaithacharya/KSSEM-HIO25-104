@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
 const API_BASE = 'http://localhost:8000';
@@ -7,6 +8,8 @@ export function ContactsManager() {
   const [contacts, setContacts] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterRole, setFilterRole] = useState('all');
   const [formData, setFormData] = useState({
     name: '',
     role: 'nurse',
@@ -47,7 +50,6 @@ export function ContactsManager() {
       
       fetchContacts();
       resetForm();
-      alert(`Contact ${editingContact ? 'updated' : 'added'} successfully!`);
     } catch (error) {
       console.error('Error saving contact:', error);
       alert('Failed to save contact: ' + (error.response?.data?.detail || error.message));
@@ -74,7 +76,6 @@ export function ContactsManager() {
     try {
       await axios.delete(`${API_BASE}/api/contacts/${contactId}`);
       fetchContacts();
-      alert('Contact deleted successfully!');
     } catch (error) {
       console.error('Error deleting contact:', error);
       alert('Failed to delete contact');
@@ -107,249 +108,448 @@ export function ContactsManager() {
     setShowForm(false);
   };
 
+  const getRoleIcon = (role) => {
+    switch(role) {
+      case 'doctor': return '👨‍⚕️';
+      case 'nurse': return '👩‍⚕️';
+      case 'emergency': return '🚑';
+      case 'admin': return '👤';
+      default: return '👤';
+    }
+  };
+
+  const getRoleGradient = (role) => {
+    switch(role) {
+      case 'doctor': return 'from-purple-500 to-indigo-500';
+      case 'nurse': return 'from-blue-500 to-cyan-500';
+      case 'emergency': return 'from-red-500 to-pink-500';
+      case 'admin': return 'from-green-500 to-emerald-500';
+      default: return 'from-gray-500 to-gray-600';
+    }
+  };
+
+  const filteredContacts = contacts.filter(contact => {
+    const matchesSearch = contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         contact.email?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = filterRole === 'all' || contact.role === filterRole;
+    return matchesSearch && matchesRole;
+  });
+
+  const roleStats = {
+    total: contacts.length,
+    doctors: contacts.filter(c => c.role === 'doctor').length,
+    nurses: contacts.filter(c => c.role === 'nurse').length,
+    emergency: contacts.filter(c => c.role === 'emergency').length,
+    active: contacts.filter(c => c.active).length
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">👥 Contact Management</h2>
-          <p className="text-gray-600 text-sm">Manage nurses and doctors for alert notifications</p>
+      {/* Header with Stats */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 bg-clip-text text-transparent">
+              👥 Contact Management
+            </h2>
+            <p className="text-neutral-600 dark:text-neutral-400 text-base">
+              Manage your team members and notification preferences
+            </p>
+          </div>
+          <motion.button
+            onClick={() => setShowForm(true)}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="relative overflow-hidden bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group"
+          >
+            <span className="relative z-10 flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Contact
+            </span>
+            <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          </motion.button>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          ➕ Add Contact
-        </button>
-      </div>
 
-      {showForm && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-xl font-semibold mb-4">
-            {editingContact ? 'Edit Contact' : 'Add New Contact'}
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Dr. Jane Smith"
-                />
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <motion.div
+            whileHover={{ y: -5, scale: 1.02 }}
+            className="relative p-4 rounded-xl bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-2 border-purple-200 dark:border-purple-700 overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 bg-purple-400/20 rounded-full blur-xl"></div>
+            <div className="relative z-10">
+              <div className="text-2xl mb-1">📊</div>
+              <div className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                {roleStats.total}
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Role *</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({...formData, role: e.target.value})}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="nurse">Nurse</option>
-                  <option value="doctor">Doctor</option>
-                  <option value="emergency">Emergency Contact</option>
-                  <option value="admin">Admin</option>
-                </select>
+              <div className="text-xs font-semibold text-purple-700 dark:text-purple-300">Total Contacts</div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            whileHover={{ y: -5, scale: 1.02 }}
+            className="relative p-4 rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-2 border-blue-200 dark:border-blue-700 overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 bg-blue-400/20 rounded-full blur-xl"></div>
+            <div className="relative z-10">
+              <div className="text-2xl mb-1">👩‍⚕️</div>
+              <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                {roleStats.nurses}
               </div>
+              <div className="text-xs font-semibold text-blue-700 dark:text-blue-300">Nurses</div>
             </div>
+          </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Phone Number *</label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.phone_number}
-                  onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
-                  placeholder="+1234567890"
-                />
-                <p className="text-xs text-gray-500 mt-1">For Twilio voice call alerts</p>
+          <motion.div
+            whileHover={{ y: -5, scale: 1.02 }}
+            className="relative p-4 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-2 border-indigo-200 dark:border-indigo-700 overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 bg-indigo-400/20 rounded-full blur-xl"></div>
+            <div className="relative z-10">
+              <div className="text-2xl mb-1">👨‍⚕️</div>
+              <div className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                {roleStats.doctors}
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
-                  placeholder="email@example.com"
-                />
+              <div className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Doctors</div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            whileHover={{ y: -5, scale: 1.02 }}
+            className="relative p-4 rounded-xl bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 border-2 border-red-200 dark:border-red-700 overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 bg-red-400/20 rounded-full blur-xl"></div>
+            <div className="relative z-10">
+              <div className="text-2xl mb-1">🚑</div>
+              <div className="text-2xl font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent">
+                {roleStats.emergency}
               </div>
+              <div className="text-xs font-semibold text-red-700 dark:text-red-300">Emergency</div>
             </div>
+          </motion.div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Firebase Token (Optional)</label>
-              <input
-                type="text"
-                value={formData.firebase_token}
-                onChange={(e) => setFormData({...formData, firebase_token: e.target.value})}
-                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
-                placeholder="For push notifications"
-              />
-              <p className="text-xs text-gray-500 mt-1">Used for mobile app push notifications</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Priority: {formData.priority} {formData.priority === 1 ? '(Highest)' : ''}
-              </label>
-              <input
-                type="range"
-                min="1"
-                max="5"
-                value={formData.priority}
-                onChange={(e) => setFormData({...formData, priority: e.target.value})}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>1 - Highest</span>
-                <span>5 - Lowest</span>
+          <motion.div
+            whileHover={{ y: -5, scale: 1.02 }}
+            className="relative p-4 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-200 dark:border-green-700 overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 bg-green-400/20 rounded-full blur-xl"></div>
+            <div className="relative z-10">
+              <div className="text-2xl mb-1">✅</div>
+              <div className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                {roleStats.active}
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Lower priority contacts receive alerts first. Alerts escalate to higher priority if not acknowledged.
-              </p>
+              <div className="text-xs font-semibold text-green-700 dark:text-green-300">Active</div>
             </div>
-
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="active"
-                checked={formData.active}
-                onChange={(e) => setFormData({...formData, active: e.target.checked})}
-                className="w-4 h-4"
-              />
-              <label htmlFor="active" className="text-sm">
-                Active (receives alert notifications)
-              </label>
-            </div>
-
-            <div className="flex space-x-3 pt-4">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                {editingContact ? 'Update' : 'Create'} Contact
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+          </motion.div>
         </div>
-      )}
+      </motion.div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {contacts.map((contact) => (
-                <tr key={contact.id} className={!contact.active ? 'bg-gray-50' : ''}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-medium text-gray-900">{contact.name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      contact.role === 'doctor' ? 'bg-purple-100 text-purple-800' :
-                      contact.role === 'nurse' ? 'bg-blue-100 text-blue-800' :
-                      contact.role === 'emergency' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {contact.role}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {contact.phone_number}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {contact.email || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      contact.priority === 1 ? 'bg-red-100 text-red-800' :
-                      contact.priority === 2 ? 'bg-orange-100 text-orange-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      Priority {contact.priority}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => toggleActive(contact)}
-                      className={`px-3 py-1 rounded text-xs font-medium ${
-                        contact.active 
-                          ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                          : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                      }`}
-                    >
-                      {contact.active ? '✓ Active' : '✗ Inactive'}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleEdit(contact)}
-                      className="text-blue-600 hover:text-blue-900 mr-4"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(contact.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        
-        {contacts.length === 0 && (
-          <div className="text-center py-12">
-            <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+      {/* Search and Filter */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.6 }}
+        className="flex flex-col md:flex-row gap-4"
+      >
+        {/* Search */}
+        <div className="flex-1 relative">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <svg className="w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <p className="text-gray-500 mb-4">No contacts configured yet</p>
-            <button
+          </div>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name or email..."
+            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-neutral-800 border-2 border-neutral-200 dark:border-neutral-700 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-900/30 transition-all"
+          />
+        </div>
+
+        {/* Filter */}
+        <div className="flex gap-2">
+          {['all', 'doctor', 'nurse', 'emergency', 'admin'].map((role) => (
+            <motion.button
+              key={role}
+              onClick={() => setFilterRole(role)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`px-4 py-3 rounded-xl font-semibold transition-all ${
+                filterRole === role
+                  ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
+                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+              }`}
+            >
+              {role === 'all' ? 'All' : role.charAt(0).toUpperCase() + role.slice(1)}
+            </motion.button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Form Modal */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => resetForm()}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="card p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 border-purple-200 dark:border-purple-700"
+            >
+              <h3 className="text-2xl font-bold mb-6 bg-gradient-to-r from-purple-600 to-cyan-600 bg-clip-text text-transparent">
+                {editingContact ? '✏️ Edit Contact' : '➕ Add New Contact'}
+              </h3>
+              
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-neutral-700 dark:text-neutral-300">
+                      Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      className="w-full px-4 py-2 border-2 border-neutral-200 dark:border-neutral-700 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-900/30 bg-white dark:bg-neutral-800 transition-all"
+                      placeholder="e.g., Dr. Jane Smith"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-neutral-700 dark:text-neutral-300">
+                      Role *
+                    </label>
+                    <select
+                      value={formData.role}
+                      onChange={(e) => setFormData({...formData, role: e.target.value})}
+                      className="w-full px-4 py-2 border-2 border-neutral-200 dark:border-neutral-700 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-900/30 bg-white dark:bg-neutral-800 transition-all"
+                    >
+                      <option value="nurse">👩‍⚕️ Nurse</option>
+                      <option value="doctor">👨‍⚕️ Doctor</option>
+                      <option value="emergency">🚑 Emergency Contact</option>
+                      <option value="admin">👤 Admin</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-neutral-700 dark:text-neutral-300">
+                      Phone Number *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={formData.phone_number}
+                      onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
+                      className="w-full px-4 py-2 border-2 border-neutral-200 dark:border-neutral-700 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-900/30 bg-white dark:bg-neutral-800 transition-all"
+                      placeholder="+1234567890"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold mb-2 text-neutral-700 dark:text-neutral-300">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      className="w-full px-4 py-2 border-2 border-neutral-200 dark:border-neutral-700 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-900/30 bg-white dark:bg-neutral-800 transition-all"
+                      placeholder="email@example.com"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-neutral-700 dark:text-neutral-300">
+                    Priority: {formData.priority} {formData.priority === 1 ? '(Highest)' : ''}
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="5"
+                    value={formData.priority}
+                    onChange={(e) => setFormData({...formData, priority: e.target.value})}
+                    className="w-full h-2 bg-gradient-to-r from-red-200 via-yellow-200 to-green-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-neutral-500 mt-1">
+                    <span>1 - Highest</span>
+                    <span>5 - Lowest</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                  <input
+                    type="checkbox"
+                    id="active"
+                    checked={formData.active}
+                    onChange={(e) => setFormData({...formData, active: e.target.checked})}
+                    className="w-5 h-5 rounded border-purple-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <label htmlFor="active" className="text-sm font-semibold text-purple-900 dark:text-purple-200">
+                    ✅ Active (receives alert notifications)
+                  </label>
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <motion.button
+                    type="submit"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex-1 relative overflow-hidden bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-xl transition-all duration-300 group"
+                  >
+                    <span className="relative z-10">{editingContact ? 'Update' : 'Create'} Contact</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={resetForm}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-6 py-3 bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 rounded-lg font-semibold hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
+                  >
+                    Cancel
+                  </motion.button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Contacts Grid */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.6 }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+      >
+        {filteredContacts.map((contact, idx) => (
+          <motion.div
+            key={contact.id}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: idx * 0.05 }}
+            whileHover={{ y: -8, scale: 1.02 }}
+            className={`relative p-6 rounded-2xl border-2 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden ${
+              contact.active
+                ? 'bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700'
+                : 'bg-neutral-50 dark:bg-neutral-900 border-neutral-300 dark:border-neutral-800 opacity-75'
+            }`}
+          >
+            <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${getRoleGradient(contact.role)} opacity-10 rounded-full blur-2xl`}></div>
+            
+            {/* Header */}
+            <div className="flex items-start justify-between mb-4 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${getRoleGradient(contact.role)} flex items-center justify-center text-2xl shadow-lg`}>
+                  {getRoleIcon(contact.role)}
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-neutral-900 dark:text-white">{contact.name}</h3>
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r ${getRoleGradient(contact.role)} text-white`}>
+                    {contact.role}
+                  </span>
+                </div>
+              </div>
+              <motion.button
+                onClick={() => toggleActive(contact)}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  contact.active
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                }`}
+              >
+                {contact.active ? '✓' : '✗'}
+              </motion.button>
+            </div>
+
+            {/* Info */}
+            <div className="space-y-2 mb-4 relative z-10">
+              <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+                <span>📞</span>
+                <span className="font-mono">{contact.phone_number}</span>
+              </div>
+              {contact.email && (
+                <div className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+                  <span>📧</span>
+                  <span className="truncate">{contact.email}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-sm">
+                <span>⭐</span>
+                <span className="font-semibold">Priority {contact.priority}</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 relative z-10">
+              <motion.button
+                onClick={() => handleEdit(contact)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex-1 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all"
+              >
+                Edit
+              </motion.button>
+              <motion.button
+                onClick={() => handleDelete(contact.id)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex-1 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all"
+              >
+                Delete
+              </motion.button>
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Empty State */}
+      {filteredContacts.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="card p-12 text-center"
+        >
+          <div className="text-6xl mb-4">👥</div>
+          <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">
+            No contacts found
+          </h3>
+          <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+            {searchQuery || filterRole !== 'all'
+              ? 'Try adjusting your search or filter'
+              : 'Get started by adding your first contact'}
+          </p>
+          {!searchQuery && filterRole === 'all' && (
+            <motion.button
               onClick={() => setShowForm(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
             >
               Add Your First Contact
-            </button>
-          </div>
-        )}
-      </div>
-
-      {contacts.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-semibold text-blue-900 mb-2">📞 Alert System</h4>
-          <ul className="text-sm text-blue-800 space-y-1">
-            <li>• <strong>Phone Calls:</strong> Configured in .env with Twilio credentials</li>
-            <li>• <strong>Push Notifications:</strong> Configured with Firebase tokens</li>
-            <li>• <strong>Escalation:</strong> Alerts start with Priority 1, escalate every 30 seconds</li>
-            <li>• <strong>Active Only:</strong> Only contacts marked as "Active" receive notifications</li>
-          </ul>
-        </div>
+            </motion.button>
+          )}
+        </motion.div>
       )}
     </div>
   );

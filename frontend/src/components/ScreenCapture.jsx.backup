@@ -241,108 +241,94 @@ export function ScreenCapture() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-2">
-                    🎬 Frame Rate: {fps} FPS
-                  </label>
-                  <input
-                    type="range"
-                    min="5"
-                    max="30"
-                    value={fps}
-                    onChange={(e) => setFps(parseInt(e.target.value))}
-                    disabled={capturing}
-                    className="w-full h-2 bg-neutral-200 rounded-lg appearance-none cursor-pointer dark:bg-neutral-700 accent-purple-600 disabled:opacity-50"
-                  />
-                  <div className="flex justify-between text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                    <span>5 FPS</span>
-                    <span className="font-medium">Higher = Better detection</span>
-                    <span>30 FPS</span>
+          <div>
+            <label className="block text-sm font-medium mb-2">
+                  Frame Rate: {fps} FPS
+                </label>
+                <input
+                  type="range"
+                  min="5"
+                  max="30"
+                  value={fps}
+                  onChange={(e) => setFps(parseInt(e.target.value))}
+                  disabled={capturing}
+                  className="w-full disabled:opacity-50"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Higher FPS = Better detection but more CPU usage
+                </p>
+          </div>
+
+          <div className="flex space-x-3">
+                {!capturing ? (
+                  <motion.button
+                    onClick={startCapture}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-cyan-600 to-blue-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group"
+                  >
+                    <span className="relative z-10 flex items-center gap-2">
+                      🎥 Start Screen Capture
+                    </span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    onClick={stopCapture}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="relative overflow-hidden bg-gradient-to-r from-red-600 via-pink-600 to-red-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group"
+                  >
+                    <span className="relative z-10 flex items-center gap-2">
+                      ⬛ Stop Capture
+                    </span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-pink-600 via-red-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </motion.button>
+                )}
+          </div>
+        </div>
+      </motion.div>
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-gray-800 text-white px-4 py-2 flex justify-between items-center">
+              <h3 className="font-semibold">Preview</h3>
+              {capturing && (
+                <span className="flex items-center space-x-2">
+                  <span className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>
+                  <span className="text-sm">CAPTURING</span>
+                </span>
+              )}
+            </div>
+            <div className="relative bg-gray-900" style={{ aspectRatio: '16/9' }}>
+              <video
+                ref={videoRef}
+                className="w-full h-full object-contain"
+                autoPlay
+                playsInline
+                muted
+              />
+              {!capturing && (
+                <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                  <div className="text-center">
+                    <svg className="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <p>No capture active</p>
+                    <p className="text-sm mt-1">Click "Start Screen Capture" above</p>
                   </div>
                 </div>
-
-                <motion.button
-                  onClick={capturing ? stopCapture : startCapture}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`w-full relative overflow-hidden text-white px-6 py-4 rounded-xl font-bold shadow-xl transition-all duration-300 group ${
-                    capturing
-                      ? 'bg-gradient-to-r from-red-600 via-pink-600 to-red-600'
-                      : 'bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600'
-                  }`}
-                >
-                  <span className="relative z-10 flex items-center justify-center gap-2 text-lg">
-                    {capturing ? '⬛ Stop Capture' : '🎬 Start Capture'}
-                  </span>
-                  <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${
-                    capturing
-                      ? 'bg-gradient-to-r from-pink-600 via-red-600 to-pink-600'
-                      : 'bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600'
-                  }`}></div>
-                </motion.button>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Preview Section */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-            className="lg:col-span-2"
-          >
-            <div className="card overflow-hidden">
-              <div className="bg-gradient-to-r from-neutral-800 to-neutral-900 text-white px-6 py-4 flex justify-between items-center">
-                <h3 className="font-bold text-lg flex items-center gap-2">
-                  <span>📺</span> Live Preview
-                </h3>
-                {capturing && (
-                  <span className="flex items-center space-x-2 bg-red-500/20 px-3 py-1 rounded-full">
-                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                    <span className="text-sm font-semibold">RECORDING</span>
-                  </span>
-                )}
-              </div>
-              <div className="relative bg-neutral-900" style={{ aspectRatio: '16/9' }}>
-                <video
-                  ref={videoRef}
-                  className="w-full h-full object-contain"
-                  autoPlay
-                  playsInline
-                  muted
-                />
-                {!capturing && (
-                  <div className="absolute inset-0 flex items-center justify-center text-neutral-400">
-                    <div className="text-center">
-                      <motion.div
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.2 }}
-                      >
-                        <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center">
-                          <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                        <p className="text-lg font-semibold mb-2">No capture active</p>
-                        <p className="text-sm text-neutral-500">Click "Start Capture" to begin monitoring</p>
-                      </motion.div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
+              )}
         </div>
+      </div>
 
-        {/* Stats Cards */}
-        {capturing && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6"
-          >
+      {capturing && (
+            <>
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                className="grid grid-cols-2 gap-4"
+              >
                 <motion.div 
                   whileHover={{ scale: 1.05, y: -5 }}
                   className="relative p-6 rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-2 border-blue-200 dark:border-blue-700 overflow-hidden shadow-lg"
@@ -362,12 +348,22 @@ export function ScreenCapture() {
                   <div className="text-3xl font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent relative z-10">
                     {stats.alertsDetected}
                   </div>
+                </motion.div>
               </motion.div>
-            </motion.div>
-        )}
 
-        <canvas ref={canvasRef} className="hidden" />
-      </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 mb-2">💡 Tips</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Open your CCTV app/video player in another window</li>
+                  <li>• The AI will analyze the captured video feed</li>
+                  <li>• Gestures and falls will trigger alerts automatically</li>
+                  <li>• Check the Alerts page to see detected events</li>
+                </ul>
+          </div>
+        </>
+      )}
+
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }
